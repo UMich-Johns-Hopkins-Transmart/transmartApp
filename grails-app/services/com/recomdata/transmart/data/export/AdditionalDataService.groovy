@@ -20,7 +20,9 @@
 
 package com.recomdata.transmart.data.export
 
-import com.recomdata.transmart.data.export.util.FileWriterUtil;
+import com.recomdata.transmart.data.export.util.FileWriterUtil
+
+import static org.transmart.authorization.QueriesResourceAuthorizationDecorator.checkQueryResultAccess;
 
 class AdditionalDataService {
 
@@ -33,6 +35,8 @@ class AdditionalDataService {
 	def geneExpressionDataService
 
     def findAdditionalDataFiles(String resultInstanceId,  studyList) {
+        checkQueryResultAccess resultInstanceId
+
 		groovy.sql.Sql sql = new groovy.sql.Sql(dataSource)
 		def filesList = []
 		
@@ -44,7 +48,7 @@ class AdditionalDataService {
 				  select distinct s.sample_cd from de_subject_sample_mapping s
 				  where s.trial_name in ${studies} and patient_id in (
 					SELECT DISTINCT sc.patient_num FROM qt_patient_set_collection sc, patient_dimension pd
-					WHERE sc.result_instance_id = CAST(? AS numeric) AND sc.patient_num = pd.patient_num
+					WHERE sc.result_instance_id = ? AND sc.patient_num = pd.patient_num
 				  ) and s.sample_cd is not null and b.file_name like s.sample_cd||'%'
 				)
 				"""

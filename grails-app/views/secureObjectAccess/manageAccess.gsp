@@ -17,65 +17,103 @@
 
 -->
 
-
 <g:setProvider library="prototype"/>
-<%@ page import="org.transmart.searchapp.SecureObjectAccess" %>
+<%@ page import="org.springframework.web.util.JavaScriptUtils; org.transmart.searchapp.SecureObjectAccess" %>
 
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <meta name="layout" content="admin" />
-    <title>Access Control by User/Group</title>
+    <title>Manage Study Access</title>
+    <script type="text/javascript"	src="${resource(dir:'js', file:'jQuery/jquery.min.js')}"></script>
+    <script type="text/javascript" src="${resource(dir:'js', file:'jQuery/jquery-ui-1.9.1.custom.min.js')}"></script>
+    <script type="text/javascript">
+        var $j = jQuery.noConflict();
+    </script>
+    <g:setProvider library="prototype" />
+    <g:javascript library="prototype" />
+
     <style>
-    p { width:430px; }
-    .ext-ie .x-form-text {position:static !important;}
+    p {
+        width: 430px;
+    }
+
+    .ext-ie .x-form-text {
+        position: static !important;
+    }
     </style>
-    <script type="text/javascript"	src="${resource(dir:'js', file:'ext/adapter/ext/ext-base.js')}"></script>
-    <script type="text/javascript"	src="${resource(dir:'js', file:'ext/ext-all.js')}"></script>
+
 </head>
+
 <body>
 <div class="body">
-    <h1>Access Control by User/Group</h1>
+    <h1>Manage Study Access for User/Group</h1>
     <g:if test="${flash.message}">
         <div class="message">${flash.message}</div>
     </g:if>
-    <div id="divuser" style="width:100%; font-size: 11px; font-familiy: 'tahoma, arial, helvetica, sans-serif'">
-        <br><b>Search User/Group</b><br>
-        <input type="text"  size="80" id="searchUsers" autocomplete="off" />
-    </div>
+    <div id="divuser"
+         style="width:100%; font:11px tahoma, arial, helvetica, sans-serif"><br><b>Search User/Group</b><br>
+        <input type="text" size="80" id="searchUsers" autocomplete="off"/></div>
 
-    <script type="text/javascript">
-        var pageInfo = {
-            basePath :"${request.getContextPath()}"
-        }
-        createUserSearchBox('${request.getContextPath()}/userGroup/ajaxGetUsersAndGroupsSearchBoxData', 440,'${principalInstance?.name}');
+    <r:script>
+var pageInfo = {
+    basePath: '${JavaScriptUtils.javaScriptEscape(request.getContextPath())}'
+}
+createUserSearchBox(pageInfo.basePath +
+        '/userGroup/ajaxGetUsersAndGroupsSearchBoxData',
+        440,
+        '${JavaScriptUtils.javaScriptEscape(principalInstance?.name)}');
 
-        function searchtrial(){
-            var pid = document.getElementById('currentprincipalid').value;
-            if(pid==null||pid ==''){
-                alert("Please select a user/group first");
-                return false;
-            }
-            ${remoteFunction(controller:'secureObjectAccess', action:'listAccessForPrincipal',update:[success:'permissions', failure:''], params:'$(\'searchtext\').serialize()+\'&id=\'+pid')};
-            return false;
-        }
+  function searchtrial(){
+    var pid = jQuery('#currentprincipalid').val();
+    if (!pid) {
+	alert("Please select a user/group first");
+	return false;
+	}
+    var form = $(this).closest('form');
+        ${remoteFunction(controller: 'secureObjectAccess',
+                action:     'listAccessForPrincipal',
+                update:     [success: 'permissions', failure: ''],
+                params:     "form.serialize()")};
+	return false;
+  }
+    </r:script>
 
-    </script>
-
-    <table>
-        <tr><td>
-            <g:form name="accessform" action="manageAccess">
-                <label for="accesslevelid"><b>Access Level</b></label>
-                <g:select optionKey="id"  optionValue="accessLevelName" from="${accessLevelList}" name="accesslevelid" value="${accesslevelid}" onchange="document.accessform.submit();"></g:select>
-                <input type="hidden" name="currentprincipalid" id="currentprincipalid" value="${principalInstance?.id}"/>
-            </g:form>
-        </td><td>&nbsp;</td>
-            <td><input name="searchtext" id="searchtext"><button class="" onclick="searchtrial();">Search Study</button></td>
-        <tr><td>Has Access for these studies</td><td></td><td>Available studies:</td></tr>
-        <tr id="permissions">
-            <g:render template="addremoveAccess" model="['secureObjectInstance':secureObjectInstance,'secureObjectAccessList' :secureObjectAccessList,'objectswithoutaccess':objectswithoutaccess]" />
-        </tr>
-    </table>
+    <g:form name="accessform" action="manageAccess">
+        <table>
+            <tr>
+                <td>
+                    <label for="accesslevelid"><b>Access Level</b></label>
+                    <g:select optionKey="id"
+                              optionValue="accessLevelName"
+                              from="${accessLevelList}"
+                              name="accesslevelid"
+                              value="${accesslevelid}"
+                              onchange="document.accessform.submit();" />
+                    <input type="hidden" name="currentprincipalid" id="currentprincipalid" value="${principalInstance?.id}"/>
+                </td>
+                <td>&nbsp;</td>
+                <td>
+                    <input name="searchtext" id="searchtext"><button class="" onclick="return searchtrial.call(this);">Search Study</button>
+                </td>
+            </tr>
+            <tr>
+                <td>Has Access for these studies</td>
+                <td></td>
+                <td>Available studies:</td>
+            </tr>
+            <tr id="permissions">
+                <g:render template="addremoveAccess"
+                          model="[secureObjectInstance:   secureObjectInstance,
+                                  secureObjectAccessList: secureObjectAccessList,
+                                  objectswithoutaccess:   objectswithoutaccess]" />
+            </tr>
+        </table>
+    </g:form>
 </div>
+</td>
+</tr>
+</tbody>
+
 </body>
 </html>

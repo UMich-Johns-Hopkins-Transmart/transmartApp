@@ -16,7 +16,9 @@
   
  
 -->
-<%@ page import="org.transmart.searchapp.SecureObjectAccess"%>
+
+
+
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
@@ -93,7 +95,7 @@
 						<td valign="top" class="name">Access to Studies:</td>
 						<td valign="top" class="value">
 							<ul>
-							<g:each in="${SecureObjectAccess.findAllByPrincipal(userGroupInstance,[sort:accessLevel])}" var='soa'>
+							<g:each in="${org.transmart.searchapp.SecureObjectAccess.findAllByPrincipal(userGroupInstance,[sort:accessLevel])}" var='soa'>
 								<li><g:link controller="secureObject" action="show" id="${soa.secureObject.id}">${soa.getObjectAccessName()}</g:link></li>
 							</g:each>
 							</ul>

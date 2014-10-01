@@ -1,50 +1,25 @@
-/*************************************************************************
- * tranSMART - translational medicine data mart
- * 
- * Copyright 2008-2012 Janssen Research & Development, LLC.
- * 
- * This product includes software developed at Janssen Research & Development, LLC.
- * 
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License 
- * as published by the Free Software  * Foundation, either version 3 of the License, or (at your option) any later version, along with the following terms:
- * 1.	You may convey a work based on this program in accordance with section 5, provided that you retain the above notices.
- * 2.	You may convey verbatim copies of this program code as you receive it, in any medium, provided that you retain the above notices.
- * 
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS    * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
- *
- ******************************************************************/
-  
 
 package com.recomdata.transmart.asynchronous.job
-
-import org.apache.commons.lang.StringUtils;
-import org.codehaus.groovy.grails.commons.ConfigurationHolder;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import groovy.time.*;
-
-import com.recomdata.transmart.domain.i2b2.AsyncJob;
+import com.recomdata.transmart.domain.i2b2.AsyncJob
+import org.apache.commons.lang.StringUtils
+import org.json.JSONArray
+import org.json.JSONObject
 
 class AsyncJobService {
 
     boolean transactional = true
-	
+
 	def quartzScheduler
 	def springSecurityService
 	def jobResultsService
-	def config = ConfigurationHolder.config
-	
+
 	/**
 	* Method that will get the list of jobs to show in the jobs tab
 	*/
 	def getjobs(jobType = null) {
 		JSONObject result = new JSONObject()
 		JSONArray rows = new JSONArray()
-		
+
 		def userName = springSecurityService.getPrincipal().username
 		def jobResults = null
 		def c = AsyncJob.createCriteria()
@@ -53,7 +28,7 @@ class AsyncJobService {
 				like("jobName", "${userName}%")
 				eq("jobType", "${jobType}")
 				ge("lastRunOn", new Date()-7)
-				order("id", "desc")
+                order("id", "desc")
 			}
 		} else {
 			jobResults = c {
@@ -63,9 +38,47 @@ class AsyncJobService {
 					isNull("jobType")
 				}
 				ge("lastRunOn", new Date()-7)
-				order("id", "desc")
+                order("id", "desc")
+	}
+		}
+		def m = [:]
+		for (jobResult in jobResults)	{
+			m = [:]
+			m["name"] = jobResult.jobName
+			m["status"] = jobResult.jobStatus
+			m["runTime"] = jobResult.jobStatusTime
+			m["startDate"] = jobResult.lastRunOn
+			m["viewerURL"] = jobResult.viewerURL
+			m["altViewerURL"] = jobResult.altViewerURL
+			rows.put(m)
+		}
+
+		result.put("success", true)
+		result.put("totalCount", jobResults.size())
+		result.put("jobs", rows)
+
+		return result
+	}
+
+	/**
+	 * get job info by job name
+	 * @param jobName
+	 * @return
+	 */
+	def getjobbyname(jobName = '') {
+
+		JSONObject result = new JSONObject()
+		JSONArray rows = new JSONArray()
+		def jobResults = null
+
+		def c = AsyncJob.createCriteria()
+
+		if (StringUtils.isNotEmpty(jobName)) {
+			jobResults = c {
+				like("jobName", "%${jobName}%")
 			}
 		}
+
 		def m = [:]
 		for (jobResult in jobResults)	{
 			m = [:]
@@ -75,16 +88,18 @@ class AsyncJobService {
 			m["startDate"] = jobResult.lastRunOn
 			m["viewerURL"] = jobResult.viewerURL
 			m["altViewerURL"] = jobResult.altViewerURL
+			m["jobInputsJson"] = new JSONObject(jobResult.jobInputsJson ?: "{}")
 			rows.put(m)
 		}
-		
+
 		result.put("success", true)
 		result.put("totalCount", jobResults.size())
 		result.put("jobs", rows)
-		
+
 		return result
+
 	}
-	
+
 	/**
 	* Called to retrieve the job results (HTML) stored in the JOB_RESULTS field for Haploview and Survival Analysis
 	*/
@@ -94,41 +109,43 @@ class AsyncJobService {
 	   result.put("jobResults", jobResults)
 	   return result
    }
-	
-	/**
-	* Method that will create the new asynchronous job name
-	* Current methodology is username-jobtype-ID from sequence generator
-	*/
-	def createnewjob(jobName = null, jobType = null) {
-		def userName = springSecurityService.getPrincipal().username
-		def jobStatus = "Started"
-		
-		def newJob = new AsyncJob(lastRunOn:new Date())
-		newJob.save()
-		
-		if (StringUtils.isEmpty(jobName)) {
-			def jobNameBuf = new StringBuffer(userName)
-			jobNameBuf.append('-')
-			if (StringUtils.isNotEmpty(jobType)) jobNameBuf.append(jobType)
-			jobNameBuf.append('-').append(newJob.id)
-			jobName = jobNameBuf.toString()
-		}
-		newJob.jobName = jobName 
-		newJob.jobType = jobType
-		newJob.jobStatus = jobStatus
-		newJob.save()
-		
-		jobResultsService[jobName] = [:]
-		updateStatus(jobName, jobStatus)
-		
-		log.debug("Sending ${jobName} back to the client")
-		JSONObject result = new JSONObject()
-		result.put("jobName", jobName)
-		result.put("jobStatus", jobStatus)
-		
-		return result;
-	}
-	
+
+    /**
+     * Method that will create the new asynchronous job name
+     * Current methodology is username-jobtype-ID from sequence generator
+     */
+    def createnewjob(params) {
+        def userName = springSecurityService.getPrincipal().username
+        def jobStatus = "Started"
+
+        def newJob = new AsyncJob(lastRunOn:new Date())
+        newJob.save()
+
+        def jobName = params?.jobName
+        if (StringUtils.isEmpty(jobName)) {
+            def jobNameBuf = new StringBuffer(userName)
+            jobNameBuf.append('-')
+            if (StringUtils.isNotEmpty(params.jobType)) jobNameBuf.append(params.jobType)
+            jobNameBuf.append('-').append(newJob.id)
+            jobName = jobNameBuf.toString()
+        }
+        newJob.jobName = jobName
+        newJob.jobType = params?.jobType
+        newJob.jobStatus = jobStatus
+        newJob.jobInputsJson = new JSONObject(params).toString()
+        newJob.save()
+
+        jobResultsService[jobName] = [:]
+        updateStatus(jobName, jobStatus)
+
+        log.debug("Sending ${jobName} back to the client")
+        JSONObject result = new JSONObject()
+        result.put("jobName", jobName)
+        result.put("jobStatus", jobStatus)
+
+        return result;
+    }
+
 	/**
 	* Method called that will cancel a running job
 	*/
@@ -138,14 +155,14 @@ class AsyncJobService {
 	   log.debug("Attempting to delete ${jobName} from the Quartz scheduler")
 	   result = quartzScheduler.deleteJob(jobName, group)
 	   log.debug("Deletion attempt successful? ${result}")
-	   
+
 	   updateStatus(jobName, jobStatus)
-					   
+
 	   JSONObject jsonResult = new JSONObject()
 	   jsonResult.put("jobName", jobName)
 	   return jsonResult
    }
-   
+
    /**
    * Repeatedly called by datasetExplorer.js to get the job status and results
    */
@@ -192,16 +209,17 @@ class AsyncJobService {
 	  } else {
 	  	  result.put('statusIndexExists', false)
 	  }
-	  
-	  updateStatus(jobName, jobStatus, viewerURL, altViewerURL, jobResults)
-	  
+
+        updateStatus(jobName, jobStatus, viewerURL, altViewerURL, jobResults)
+
 	  //log.debug("Returning status: ${jobStatus} for ${jobName}")
 	  result.put("jobStatus", jobStatus)
 	  result.put("errorType", errorType)
-	  
+        result.put("jobName", jobName)
+
 	  return result
   }
-  
+
   /**
   * Helper to update the status of the job and log it
   *
@@ -217,7 +235,7 @@ class AsyncJobService {
 	 def retValue = false   // true if the job was cancelled
 	 def jobNameArray = jobName.split("-")
 	 def jobID = jobNameArray[2]
-	 
+
 	 //log.debug("Checking to see if the user cancelled the job")
 	 if (jobResultsService[jobName]["Status"] == "Cancelled")	{
 		 log.warn("${jobName} has been cancelled")
@@ -225,24 +243,22 @@ class AsyncJobService {
 	 } else	{
 		 jobResultsService[jobName]["Status"] = status
 	 }
-
 	 //If the job isn't already cancelled, update the job info.
-	 if(!retValue)
-	 {
-		 def asyncJob = AsyncJob.get(jobID)
-		 
-		 TimeDuration td = TimeCategory.minus(new Date(), asyncJob.lastRunOn)
-		 //log.debug("Job has been running for ${td}}")
-		 asyncJob.runTime = td
+        if (!retValue) {
+		 def asyncJob = AsyncJob.get(Long.parseLong(jobID))
+
+        // TimeDuration td = TimeCategory.minus(new Date(), asyncJob.lastRunOn)
+            //log.debug("Job has been running for ${td}}")
+         //asyncJob.runTime = td
 		 asyncJob.jobStatus = status
 		 if (viewerURL && viewerURL != '') asyncJob.viewerURL = viewerURL
 		 if (altViewerURL && altViewerURL != '' && asyncJob.altViewerURL != null) asyncJob.altViewerURL = altViewerURL
 		 if (results && results != '') asyncJob.results = results
-		 
+            jobResultsService[jobName]["ViewerURL"] = viewerURL
 		 //We need to flush so that the value doesn't overwrite cancelled when the controller finishes.
 		 asyncJob.save(flush:true)
 	 }
-	 
+
 	 return retValue
   }
 }

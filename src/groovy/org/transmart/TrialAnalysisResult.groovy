@@ -17,10 +17,6 @@ package org.transmart
  * 
  *
  ******************************************************************/
-  
-
-import org.transmart.biomart.ClinicalTrial;
-
 import com.recomdata.tea.TEABaseResult
 
 /**

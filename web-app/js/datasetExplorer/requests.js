@@ -136,7 +136,7 @@ function getONTRequestFooter(){ return "</message_body>\
                    }
 
 function getCategories()
-{
+{  
     jQuery.ajax(pageInfo.basePath + '/concepts/getCategories', {
             dataType : 'json'
         })
@@ -220,7 +220,7 @@ function getCRCQueryRequest(subset, queryname)
 {
     if (queryname == "" || queryname == undefined) {
         var d = new Date();
-        queryname = GLOBAL.Username+"'s Query at "+ d.toString();
+        queryname = GLOBAL.Username+"'s Query at "+ d.toUTCString();
     }
 
     var query =
@@ -234,7 +234,7 @@ function getCRCQueryRequest(subset, queryname)
             query = query + getCRCRequestPanel(qcd.dom, i);
         }
     }
-    query = query + getSecurityPanel() + "</ns4:query_definition>";
+    query = query + "</ns4:query_definition>";
 
     return query;
 }
@@ -505,26 +505,3 @@ var firstResultInstanceId=queryResultInstances[0].selectSingleNode('result_insta
 //alert(firstResultInstanceId);
 createExportItem(queryName, firstResultInstanceId);
 }
-
-
-function getSecurityPanel() {
-//      Commenting this out while investigating for the right parameters
-//		if(!GLOBAL.IsAdmin)
-		if(false)
-		{
-		 return"<panel><panel_number>21</panel_number> \
-               <invert>0</invert><total_item_occurrences>1</total_item_occurrences>\
-   			   <item>\
-					<item_key>\\\\Public Studies\\Public Studies\\SECURITY\\</item_key>\
-					<class>ENC</class>\
-					<constrain_by_value>\
-					<value_operator>IN</value_operator>\
-					<value_constraint>("+GLOBAL.Tokens+")</value_constraint>\
-					<value_unit_of_measure>unit</value_unit_of_measure>\
-					<value_type>TEXT</value_type>\
-					</constrain_by_value>\
-					</item>\
-  				</panel>";
-  		}
-  		else return ""; //no security panel
-  		}

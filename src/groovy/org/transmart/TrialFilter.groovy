@@ -33,8 +33,8 @@ class TrialFilter {
 	//Double foldChange = 1.2 
 	//Double pValue = 0.05 
 	Double foldChange
-	Double pValue
-	Double rValue
+	Double pvalue
+	Double rvalue
 	Long bioDiseaseId
 	Long bioCompoundId
 	String phase
@@ -66,11 +66,11 @@ class TrialFilter {
 	}
 
 	def hasPValue(){
-		return (pValue != null && pValue > 0);
+		return (pvalue != null && pvalue > 0);
 	}
 
 	def hasRValue(){
-		return (rValue != null);
+		return (rvalue != null);
 
 	}
 

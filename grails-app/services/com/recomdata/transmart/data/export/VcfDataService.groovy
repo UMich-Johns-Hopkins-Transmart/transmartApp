@@ -16,14 +16,12 @@
  *
  *
  ******************************************************************/
-package com.recomdata.transmart.data.export;
+package com.recomdata.transmart.data.export
 
-import java.util.List;
+import de.DeVariantDataSet
+import de.DeVariantSubjectDetail
 
-import de.DeVariantDataSet;
-import de.DeVariantSubjectDetail;
-import de.DeVariantSubjectIdx;
-import com.recomdata.transmart.data.export.util.FileWriterUtil;
+import static org.transmart.authorization.QueriesResourceAuthorizationDecorator.checkQueryResultAccess;
 
 class VcfDataService {
 	boolean transactional = false
@@ -73,12 +71,10 @@ class VcfDataService {
 			chrList.addAll(parseChrList(selectedChromosomes));
 		}
 
-		
 		// locate dataset
 		
 		def datasets = findDataset(resultInstanceId1, null);
 		
-
 		// locate and retrieve variant
 				
 		def variants = retrieveVariantDetail(rsList, chrList, datasets)
@@ -272,8 +268,7 @@ class VcfDataService {
 				//println(it)
 				variant.append("\t").append(valueArray[idx])
 			//	println(valueArray[idx])
-				}
-				else{
+                } else {
 					throw new Exception("variant size :"+total+" do not match variant index:"+it)
 				}
 			}
@@ -310,8 +305,7 @@ class VcfDataService {
 	//	println("Rs:"+rsList);
 	//	println("CHR:"+chrList);
 		
-		if(!rsList.isEmpty())
-		{
+        if (!rsList.isEmpty()) {
 			query +=" AND dvd.rsID IN (:rsids) " // this could be an issue for more than 1000 rs ids
 			vmap.put('rsids', rsList)
 		}
@@ -327,7 +321,6 @@ class VcfDataService {
 
 	}
 
-	
 	/**
 	 * parse rsids
 	 * @param rsIds
@@ -361,6 +354,7 @@ class VcfDataService {
 	 */
 	
 	def findDataset(resultInstanceId1, resultInstanceId2){
+        checkQueryResultAccess resultInstanceId1, resultInstanceId2
 		
 		
 		def q= """
@@ -370,18 +364,17 @@ class VcfDataService {
 """;
 		def param = []
 		if(resultInstanceId1!=null){
-			param.add('CAST(' + resultInstanceId1 + '? AS numeric)')
+            param.add(resultInstanceId1)
 		}
 		if(resultInstanceId2!=null){
-			param.add('CAST(' + resultInstanceId2 + '? AS numeric)')
+            param.add(resultInstanceId2)
 		}
 		
 		groovy.sql.Sql sql = new groovy.sql.Sql(dataSource);
 		def datasetList=[];
 	
 		sql.eachRow(q, param, {row->
-			if(row.dataset_id!=null)
-			{
+            if (row.dataset_id != null) {
 				datasetList.add(row.dataset_id)
 			}
 		});
@@ -399,7 +392,7 @@ class VcfDataService {
 		def q  =
 """				SELECT distinct a.DATASET_ID, a.SUBJECT_ID, a.POSITION from DE_VARIANT_SUBJECT_IDX a
 		INNER JOIN de_subject_sample_mapping b on a.SUBJECT_ID = b.SUBJECT_ID 
-		INNER JOIN qt_patient_set_collection sc ON sc.result_instance_id in (CAST(? AS numeric)) AND b.patient_id = sc.patient_num
+		INNER JOIN qt_patient_set_collection sc ON sc.result_instance_id in (?) AND b.patient_id = sc.patient_num
  ORDER BY a.POSITION"""
 		groovy.sql.Sql sql = new groovy.sql.Sql(dataSource);
 		def datasetIdxMap =[:]
@@ -418,8 +411,6 @@ class VcfDataService {
 		return datasetIdxMap;
 
 	}
-	
-	
 	
 	/**
 	* This function parse the ","-separated gene string like "Gene>MET", and return a list of gene search ID and a list of matching gene names.
@@ -455,11 +446,9 @@ class VcfDataService {
 	   StringBuilder sb=new StringBuilder();
 	   // need to make it less than 1000! -- temp solution
 	   int i = 0;
-	   for(c in list)
-	   {
+        for (c in list) {
 		   //If the only thing submitted was "ALL" we return an empty string just like there was nothinbg in the box.
-		   if(c.toString()=="ALL" && list.size()==1)
-		   {
+            if (c.toString() == "ALL" && list.size() == 1) {
 			   break;
 		   }
 		   

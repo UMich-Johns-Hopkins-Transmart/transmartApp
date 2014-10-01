@@ -24,12 +24,8 @@ package org.transmart
  *@author $Author: mmcduffie $
  *@version $Revision: 10125 $
  **/
-
-import grails.converters.*
-import grails.validation.Validateable
 import org.apache.log4j.Logger
 
-@Validateable
 class SearchFilter {
 
     static Logger log = Logger.getLogger(SearchFilter.class)

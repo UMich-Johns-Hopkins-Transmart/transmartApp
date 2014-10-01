@@ -17,7 +17,6 @@
  *
  ******************************************************************/
   
-
 /**
 * $Id: SearchController.groovy 10098 2011-10-19 18:39:32Z mmcduffie $
 * @author $Author: mmcduffie $
@@ -25,21 +24,12 @@
 *
 */
 
-import grails.converters.*
-
-import org.hibernate.*
-import org.transmart.GlobalFilter;
-import org.transmart.SearchFilter;
-import org.transmart.SearchResult;
-import org.transmart.biomart.BioDataExternalCode;
-import org.transmart.searchapp.AccessLog;
-import org.transmart.searchapp.AuthUser;
-
-import org.transmart.searchapp.CustomFilter
-import org.transmart.searchapp.SearchKeyword
-import org.transmart.searchapp.SearchKeywordTerm
-
-import com.recomdata.util.*
+import grails.converters.JSON
+import org.transmart.GlobalFilter
+import org.transmart.SearchFilter
+import org.transmart.SearchResult
+import org.transmart.biomart.BioDataExternalCode
+import org.transmart.searchapp.*
 
 public class SearchController{
 	def sessionFactory
@@ -58,12 +48,42 @@ public class SearchController{
 		session.setAttribute('searchFilter', new SearchFilter())
 	}
 
-	
+    def list = {
+        if (!params.max) params.max = 20
+        //	session["opengenerifs"]=[:]
+        //	session["details"]=[:]
+        def results = GeneExprAnalysis.list(params)
+        [geneExprAnalysisList: results, total: GeneExprAnalysis.count(), page: true]
+    }
+
+
 	def loadSearchAnalysis = {
 			def value = params.query.toUpperCase()
 			params.query = 'gene'+SEARCH_DELIMITER+'pathway'+SEARCH_DELIMITER+'genelist'+SEARCH_DELIMITER+'genesig:'+params.query
 			loadSearch()
 	}
+
+    /**
+     * load list of keyword terms to following data category:
+     * - MIRNA
+     * - GENE
+     * - PATHWAY
+     * - GENELIST
+     * - GENESIG
+     */
+    def loadSearchPathways = {
+        params.query = 'metabolite_superpathway' + SEARCH_DELIMITER +
+                       'metabolite_subpathway' + SEARCH_DELIMITER +
+                       'metabolite' + SEARCH_DELIMITER +
+                       'protein' + SEARCH_DELIMITER +
+                       'mirna' + SEARCH_DELIMITER +
+                       'gene' + SEARCH_DELIMITER +
+                       'pathway' + SEARCH_DELIMITER +
+                       'genelist' + SEARCH_DELIMITER +
+                       'genesig:' + params.query
+        loadSearch()
+    }
+
 	/**
 	 * find top 20 biomarkers that exist in the keyword table  with case insensitive LIKE match
 	 */
@@ -81,7 +101,7 @@ public class SearchController{
 		def keywords = new LinkedHashSet()
 		// don't execute query if category is All and the term is empty
 		if (!("ALL".equals(category) && values.length() == 0)) {
-			def queryStr = "SELECT distinct t.searchKeyword, t.keywordTerm, t.rank, t.termLength FROM org.transmart.searchapp.SearchKeywordTerm t WHERE t.keywordTerm LIKE :term || '%' "
+            def queryStr = "SELECT distinct t.searchKeyword, t.keywordTerm, t.rank, t.termLength FROM org.transmart.searchapp.SearchKeywordTerm t WHERE t.keywordTerm LIKE :term || '%' "
 			def queryParams = ["term":values]
 			// filter by category if specified
 			if (!"ALL".equals(category)) {
@@ -113,7 +133,7 @@ public class SearchController{
 
 	def loadCategories = {
 
-		def categories = SearchKeyword.executeQuery("select distinct k.dataCategory as value, k.displayDataCategory as label from org.transmart.searchapp.SearchKeyword k order by k.dataCategory")
+        def categories = SearchKeyword.executeQuery("select distinct k.dataCategory as value, k.displayDataCategory as label from org.transmart.searchapp.SearchKeyword k order by lower(k.dataCategory)")
 		def rows = []
 		rows.add([value: "all", label:"all"])
 		for (category in categories) {
@@ -130,7 +150,8 @@ public class SearchController{
 			rows.add(row)
 		}
 		def result = [rows:rows]
-        render(text:params.callback + "(" + (result as JSON) + ")", contentType:"application/javascript")
+        render params.callback + "(" + (result as JSON) + ")"
+
 	}
 
 	// Used by EditFiltersWindow to load records for list of global filters.
@@ -149,12 +170,11 @@ public class SearchController{
 		if (params.id != null && params.id.length() > 0) {
 			def keyword = getSearchKeyword(params.id)
 			genes = searchKeywordService.expandPathwayToGenes(keyword.bioDataId.toString())
-			//			def query = "select k from org.transmart.searchapp.SearchKeyword k, org.transmart.biomart.BioDataCorrelation c where k.bioDataId=c.associatedBioDataId and c.bioDataId=?"
-			//			genes = org.transmart.searchapp.SearchKeyword.executeQuery(query, keyword.bioDataId)
+            //			def query = "select k from org.transmart.searchapp.SearchKeyword k, org.transmart.biomart.BioDataCorrelation c where k.bioDataId=c.associatedBioDataId and c.bioDataId=?"
+            //			genes = org.transmart.searchapp.SearchKeyword.executeQuery(query, keyword.bioDataId)
 		}
 		renderSearchKeywords(genes)
 	}
-
 
 	/**
 	 * load pathway and gene for heatmap
@@ -173,10 +193,10 @@ public class SearchController{
 		def user = AuthUser.findByUsername(springSecurityService.getPrincipal().username)
 		def uid = user.id;
 
-		//	def queryStr = "SELECT distinct k FROM org.transmart.searchapp.SearchKeyword k left join k.externalCodes c WHERE k.dataCategory IN ('GENE', 'PATHWAY') AND (UPPER(k.keyword) LIKE '"+values+"%' OR (c.codeType='SYNONYM' AND UPPER(c.code) LIKE '"+values+"%')) ORDER BY LENGTH(k.keyword), k.keyword";
+        //	def queryStr = "SELECT distinct k FROM org.transmart.searchapp.SearchKeyword k left join k.externalCodes c WHERE k.dataCategory IN ('GENE', 'PATHWAY') AND (UPPER(k.keyword) LIKE '"+values+"%' OR (c.codeType='SYNONYM' AND UPPER(c.code) LIKE '"+values+"%')) ORDER BY LENGTH(k.keyword), k.keyword";
 		StringBuffer qBuf = new StringBuffer();
 		qBuf.append("SELECT distinct t.searchKeyword, t.keywordTerm, t.rank, t.termLength ");
-		qBuf.append("FROM org.transmart.searchapp.SearchKeywordTerm t ");
+        qBuf.append("FROM org.transmart.searchapp.SearchKeywordTerm t ");
 		qBuf.append("WHERE t.searchKeyword.dataCategory IN ('GENE', 'PATHWAY', 'GENESIG','GENELIST') AND t.keywordTerm LIKE'"+values+"%' ");
         qBuf.append(" AND (t.ownerAuthUserId ="+ uid+" OR t.ownerAuthUserId IS NULL) ORDER BY t.rank ASC, t.termLength ASC, t.keywordTerm");
 		def keywordResults = SearchKeywordTerm.executeQuery(qBuf.toString(), [max:20])
@@ -202,7 +222,7 @@ public class SearchController{
 		}
 		def allSynonyms
 		if (dataIds?.size() > 0) {
-			allSynonyms = BioDataExternalCode.executeQuery("SELECT DISTINCT bdec FROM org.transmart.biomart.BioDataExternalCode bdec WHERE bdec.bioDataId IN(:ids) AND bdec.codeType='SYNONYM'",[ids:dataIds])
+            allSynonyms = BioDataExternalCode.executeQuery("SELECT DISTINCT bdec FROM org.transmart.biomart.BioDataExternalCode bdec WHERE bdec.bioDataId IN(:ids) AND bdec.codeType='SYNONYM'", [ids: dataIds])
 		}
 		def synMap =[:]
 		def synList = null
@@ -235,18 +255,17 @@ public class SearchController{
 			}
 		}
 		def result = [rows:itemlist]
-        render(text:params.callback + "(" + (result as JSON) + ")", contentType:"application/javascript")
 
-	}
+	    render params.callback + "(" + (result as JSON) + ")"
+
+    }
 
 	def doSearch = {
 
 		def filter = session.searchFilter;
 		def sResult = new SearchResult()
-
-		log.info "doSearch:"+params
-		log.info "isTextOnly = " + filter.globalFilter.isTextOnly()
-
+        //	log.info "doSearch:"+params
+        //log.info "isTextOnly = " + filter.globalFilter.isTextOnly()
 		SearchService.doResultCount(sResult,filter)
 		filter.summaryWithLinks = createSummaryWithLinks(filter)
 		filter.createPictorTerms()
@@ -258,8 +277,7 @@ public class SearchController{
 		} else if (!defaultSet && sResult.experimentCount>0) {
 			session.searchFilter.datasource="experiment"
 			defaultSet = true;
-		}
-		else if (!defaultSet && sResult.profileCount>0) {
+        } else if (!defaultSet && sResult.profileCount > 0) {
 			session.searchFilter.datasource="profile"
 			defaultSet = true;
 		} else if(!defaultSet && sResult.literatureCount()>0){
@@ -280,7 +298,7 @@ public class SearchController{
 	}
 
 	/**
-	 * conduct a search, params expected or keyword id or keyword text
+     * conduct a search, params expected or keywork id or keyword text
 	 */
 	def search = {
 		def keyword
@@ -311,9 +329,7 @@ public class SearchController{
 		def sfilter = new SearchFilter()
 		def gfilter = sfilter.globalFilter
 		def customFilter = CustomFilter.get( params.id )
-		def redirected = false
 
-		log.info "searchCustomFilter: '${customFilter}'"
 		if (customFilter != null) {
 			def user = AuthUser.findByUsername(springSecurityService.getPrincipal().username)
 			if (customFilter.privateFlag != 'Y' || customFilter.searchUserId == user.id) {
@@ -340,19 +356,16 @@ public class SearchController{
 			} else {
 				flash.message = "You are not authorized to view the custom filter with ID ${params.id}."
 				redirect(action:'index')
-				redirected = true
 			}
 		} else {
 			flash.message = "The custom filter with ID ${params.id} no longer exists."
 			redirect(action:'index')
-			redirected = true
 		}
-
-		if(!redirected) {
 			sfilter.searchText = ""
 			session.searchFilter = sfilter
+
 			redirect(action:'doSearch', params:[ts:new Date().getTime()])
-		}
+
 	}
 
 	/**
@@ -393,8 +406,7 @@ public class SearchController{
 	def remove = {
 		def id = params?.id
 		def gfilter = session.searchFilter.globalFilter
-		if (id != null && id.length() > 0)
-		{
+        if (id != null && id.length() > 0) {
 			def keyword = getSearchKeyword(id)
 			if (keyword != null) {
 				gfilter.removeKeywordFilter(keyword)
@@ -429,7 +441,7 @@ public class SearchController{
 	/**
 	 * update existing search Filter
 	 */
-	def updateSearchFilter(keyword, SearchFilter filter) {
+    private void updateSearchFilter(keyword, SearchFilter filter) {
 		filter.searchText = keyword.keyword;
 		filter.globalFilter.addKeywordFilter(keyword)
 	}
@@ -437,7 +449,7 @@ public class SearchController{
 	/**
 	 * Creates link to detatils for specified filter keyword.
 	 */
-	def createSummaryFilter(org.transmart.searchapp.SearchKeyword keyword){
+    def createSummaryFilter(SearchKeyword keyword) {
 
 		def link = new StringBuilder()
 		def type = keyword.dataCategory.toLowerCase()
@@ -498,7 +510,7 @@ public class SearchController{
 	/**
 	 * Creates summary of filters with links to details for filters.
 	 */
-	def createSummaryWithLinks(SearchFilter filter) {
+    private createSummaryWithLinks(SearchFilter filter) {
 
 		// get global filter
 		GlobalFilter gfilter = filter.globalFilter;
@@ -564,7 +576,6 @@ public class SearchController{
 
 		return summary.toString()
 	}
-
 
 	//def loadLinkedGids(Set gidSet){
 	///	def gidlist = []
@@ -637,7 +648,6 @@ public class SearchController{
 	}
 
 	def noResult = {
-		//Comment
 		render(view:'noresult')
 	}
 }

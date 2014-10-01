@@ -16,7 +16,7 @@
   
  
 -->
-<%@ page import="org.transmart.searchapp.AuthUser"%>
+
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
@@ -62,7 +62,7 @@
 			</div>
 
 			<div class="paginateButtons">
-				<g:paginate total="${AuthUser.count()}" />
+				<g:paginate total="${org.transmart.searchapp.AuthUser.count()}" />
 			</div>
 
 		</div>

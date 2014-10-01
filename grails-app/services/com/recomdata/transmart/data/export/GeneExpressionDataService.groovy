@@ -20,20 +20,15 @@
 
 package com.recomdata.transmart.data.export
 
-import java.io.File
-import java.sql.ResultSetMetaData
-import java.util.List;
-import java.util.Map
-
+import com.recomdata.transmart.data.export.util.FileWriterUtil
 import org.apache.commons.lang.StringUtils
-import org.apache.commons.lang.math.NumberUtils;
-import org.codehaus.groovy.grails.commons.ConfigurationHolder
 import org.rosuda.REngine.REXP
 import org.rosuda.REngine.Rserve.RConnection
-
 import org.transmart.searchapp.SearchKeyword
 
-import com.recomdata.transmart.data.export.util.FileWriterUtil
+import java.sql.ResultSetMetaData
+
+import static org.transmart.authorization.QueriesResourceAuthorizationDecorator.checkQueryResultAccess
 
 class GeneExpressionDataService {
 		
@@ -47,8 +42,8 @@ class GeneExpressionDataService {
 	def grailsApplication
 	def fileDownloadService
 	def utilService
+    def sessionFactory
 	
-	def config = ConfigurationHolder.config
 
 	public boolean getData(List studyList, 
 							File studyDir, 
@@ -61,8 +56,7 @@ class GeneExpressionDataService {
 							String timepoint, 
 							String sampleTypes,
 							String tissueTypes,
-							Boolean splitAttributeColumn)
-	{
+                           Boolean splitAttributeColumn) {
 		
 		//This tells us whether we need to include the pathway information or not.
 		Boolean includePathwayInfo = false
@@ -70,8 +64,7 @@ class GeneExpressionDataService {
 		//This tells us whether we found data when we call the "Write Data" method.
 		boolean dataFound = false
 		
-		try 
-		{
+        try {
 			//Grab the pathway name based on the pathway id.
 			pathway = derivePathwayName(pathway)
 			
@@ -82,11 +75,10 @@ class GeneExpressionDataService {
 				def sqlQuery, sampleQuery = null;
 				
 				//Create a query for the Subset.
-				if (null != resultInstanceId)
-				{
-					//Get the concepts for this result instance id.
-					def concepts = i2b2HelperService.getConcepts(resultInstanceId)
-		
+                if (null != resultInstanceId) {
+                    //Get the concepts for this result instance id.
+                    def concepts = i2b2HelperService.getConcepts(resultInstanceId)
+
 					//Add the subquery to the main query.
 					 sqlQuery = createMRNAHeatmapPathwayQuery(study, resultInstanceId, gplIds, pathway, timepoint, sampleTypes, tissueTypes)
 					 sampleQuery = createStudySampleAssayQuery(study,resultInstanceId, gplIds, timepoint, sampleTypes, tissueTypes )
@@ -126,8 +118,7 @@ class GeneExpressionDataService {
 		""");
 		sQuery.append(" WHERE ssm.trial_name = '").append(study).append("' ")
 		//If we have a sample type, append it to the query.
-		if(sampleTypes!=null && sampleTypes.length()>0)
-		{
+        if (sampleTypes != null && sampleTypes.length() > 0) {
 			sQuery.append(" AND ssm.sample_type_cd IN ").append(convertStringToken(sampleTypes));
 		}
 
@@ -149,7 +140,6 @@ class GeneExpressionDataService {
 		return sQuery.toString()
 	}
 
-
 	/**
 	* This creates a query to gather sample information for a given list of subject ids.
 	* @param subsetName The subset name is hardcoded as a column into the result set so we know which subset the sample should be a part of.
@@ -160,8 +150,7 @@ class GeneExpressionDataService {
 	* @return
 	* @throws Exception
 	*/
-   def String createMRNAHeatmapPathwayQuery(String study, String resultInstanceId, List gplIds, String pathwayName, String timepoint, String sampleTypes,String tissueTypes) throws Exception
-   {
+    def String createMRNAHeatmapPathwayQuery(String study, String resultInstanceId, List gplIds, String pathwayName, String timepoint, String sampleTypes, String tissueTypes) throws Exception {
 
 	   //This is the base SQL Statement for getting the mRNA data.
 	   StringBuilder sSelect = new StringBuilder()
@@ -185,7 +174,7 @@ class GeneExpressionDataService {
 	   
 	   sTables.append("""
 	   FROM de_subject_microarray_data a
-			   INNER JOIN de_subject_sample_mapping ssm ON ssm.assay_id = A.assay_id 
+			   INNER JOIN de_subject_sample_mapping ssm ON ssm.assay_id = A.assay_id
 			   INNER JOIN de_mrna_annotation b ON a.probeset_id = b.probeset_id and ssm.gpl_id = b.gpl_id
 			   INNER JOIN qt_patient_set_collection sc ON sc.result_instance_id = ? AND ssm.PATIENT_ID = sc.patient_num
 	   		   INNER JOIN PATIENT_DIMENSION pd on ssm.patient_id = pd.patient_num
@@ -193,8 +182,7 @@ class GeneExpressionDataService {
 	   
 	   //If a list of genes was entered, look up the gene ids and add them to the query. If a gene signature or list was supplied then we modify the query to join on the tables that link the list to the gene ids.
 	   String genes;
-	   if (pathwayName != null && pathwayName.length() > 0 && !(pathwayName.startsWith("GENESIG") || pathwayName?.startsWith("GENELIST")))
-	   {
+        if (pathwayName != null && pathwayName.length() > 0 && !(pathwayName.startsWith("GENESIG") || pathwayName?.startsWith("GENELIST"))) {
 		   // insert distinct
 		   sSelect.insert(6, " DISTINCT ");
 
@@ -212,9 +200,7 @@ class GeneExpressionDataService {
 		   sTables.append(" WHERE SSM.trial_name = '").append(study).append("' ")
 		   sTables.append(" AND sk.unique_id IN ").append(keywordTokens).append (" ");
 
-	   }
-	   else if(pathwayName?.startsWith("GENESIG") || pathwayName?.startsWith("GENELIST"))
-	   {
+        } else if (pathwayName?.startsWith("GENESIG") || pathwayName?.startsWith("GENELIST")) {
 		   //If we are querying by a pathway, we need to include that id in the final output.
 		   sSelect.append(", sk.SEARCH_KEYWORD_ID ")
 		   
@@ -228,15 +214,12 @@ class GeneExpressionDataService {
 		   //Include the normal filter.
 		   sTables.append(" WHERE SSM.trial_name = '").append(study).append("' ")
 		   sTables.append(" AND sk.unique_id IN ").append(convertStringToken(pathwayName)).append(" ");
-	   }
-	   else
-	   {
+        } else {
 		   sTables.append(" WHERE SSM.trial_name = '").append(study).append("' ")
 	   }
 
 	   //If we have a sample type, append it to the query.
-	   if(sampleTypes!=null && sampleTypes.length()>0)
-	   {
+        if (sampleTypes != null && sampleTypes.length() > 0) {
 		   sTables.append(" AND ssm.sample_type_cd IN ").append(convertStringToken(sampleTypes));
 	   }
 
@@ -262,13 +245,12 @@ class GeneExpressionDataService {
 	   return sSelect.toString();
    }
 	
-	def String createDownloadCELFilesQuery(String resultInstanceId, studyList, String subjectIds, String timepoint, String sampleTypes, String tissueTypes) throws Exception
-	{
+    def String createDownloadCELFilesQuery(String resultInstanceId, studyList, String subjectIds, String timepoint, String sampleTypes, String tissueTypes) throws Exception {
 		StringBuilder s = new StringBuilder()
 		
 		//Get the list of assay Ids based on patient ids, sample types, and timepoints.
 		String assayIds = getAssayIds(resultInstanceId, sampleTypes, timepoint, tissueTypes);
-		String studies=convertList(studyList, false, 1000)
+        String studies = convertList(studyList, true, 1000)
 		//If we didn't find any assay Id's, abandon all hope.
 		if (StringUtils.isNotEmpty(assayIds)) {
 			//Build the string to get the sample data.
@@ -295,6 +277,7 @@ class GeneExpressionDataService {
 	 * @return
 	 */
 	def String getAssayIds(String resultInstanceId, String sampleTypes, String timepoint, String tissueTypes) {
+        checkQueryResultAccess resultInstanceId
 
 		//Sql command used to retrieve Assay IDs.
 		groovy.sql.Sql sql = new groovy.sql.Sql(dataSource);
@@ -307,10 +290,8 @@ class GeneExpressionDataService {
 									qt_patient_set_collection qt 
 							WHERE qt.patient_num = s.patient_id AND qt.result_instance_id = ? """);
 
-
 		//If we have a sample type, append it to the query.
-		if(sampleTypes!=null && sampleTypes.length()>0)
-		{
+        if (sampleTypes != null && sampleTypes.length() > 0) {
 			assayS.append(" AND s.sample_type_cd IN ").append(convertStringToken(sampleTypes));
 		}
 
@@ -324,7 +305,6 @@ class GeneExpressionDataService {
 			assayS.append(" AND s.tissue_type_cd IN ").append(convertStringToken(tissueTypes));
 		}
 
-		
 		//Always add an order by to the query.
 		assayS.append (" ORDER BY s.assay_id");
 
@@ -335,20 +315,16 @@ class GeneExpressionDataService {
 		def assayIdsArray =[];
 
 		sql.eachRow(assayS.toString(), [resultInstanceId], {row->
-			if(row.assay_id!=null)
-			{
+            if (row.assay_id != null) {
 				assayIdsArray.add(row.assay_id)
 			}
 		});
 	
-		
-
 		//TODO: Why is there a max here?
 		//Make a string of the assay IDs.
 		String assayIds = convertList(assayIdsArray, false, 1000);
 		return assayIds;
 	}
-
 
 	/**
 	 * TODO change the param here, do not pass subjectIds instead pass the resultInstanceId and join the query as in getAssayIds
@@ -374,8 +350,7 @@ class GeneExpressionDataService {
 		String trialNames = "";
 		sql.eachRow(trialQ.toString(), {row ->
 
-			if(trialNames.length()>0)
-			{
+            if (trialNames.length() > 0) {
 				trialNames+=",";
 			}
 
@@ -422,8 +397,7 @@ class GeneExpressionDataService {
 		StringBuilder s = new StringBuilder("(");
 		for(int i=0; i<ts.length;i++){
 			//Make sure we have a non blank token before adding to list.
-			if(ts[i])
-			{
+            if (ts[i]) {
 				if(i>0)
 					s.append(",");
 				s.append("'");
@@ -461,8 +435,7 @@ class GeneExpressionDataService {
 		return s.toString();
 	}
 
-	def writeData(String resultInstanceId, String sqlQuery, String sampleQuery, File studyDir, String fileName, String jobName,includePathwayInfo,splitAttributeColumn, gplIds)
-	{
+    def writeData(String resultInstanceId, String sqlQuery, String sampleQuery, File studyDir, String fileName, String jobName, includePathwayInfo, splitAttributeColumn, gplIds) {
 		def filePath = null
 		def dataTypeName = "mRNA";
 		def dataTypeFolder = "Processed_Data";
@@ -475,7 +448,7 @@ class GeneExpressionDataService {
 		con = dataSource.getConnection()
 		
 		//Grab the configuration that sets the fetch size.
-		def rsize = config.com.recomdata.plugins.resultSize;
+        def rsize = grailsApplication.config.com.recomdata.plugins.resultSize;
 		Integer fetchSize = 5000;
 		if(rsize!=null){
 			try{
@@ -537,7 +510,7 @@ class GeneExpressionDataService {
 		// and writes to the writer
 		
 		log.info("start sample retrieving query");
-		log.debug("Sample Query : " + sampleQuery);
+        log.debug("Sample Query : " + sampleQuery);
 		rs = stmt1.executeQuery();
 		def sttSampleStr = null;
 		
@@ -550,8 +523,7 @@ class GeneExpressionDataService {
 				assayID = rs.getString("ASSAY_ID");
 				GPL_ID = rs.getString("GPL_ID");
 				
-				if(splitAttributeColumn)
-				{
+                if (splitAttributeColumn) {
 					sttSampleStr = (new StringBuilder()).append(StringUtils.isNotEmpty(sampleType) ? sampleType : '').append(valueDelimiter)
 					.append(StringUtils.isNotEmpty(timepoint) ? timepoint : '').append(valueDelimiter)
 					.append(StringUtils.isNotEmpty(tissueType) ? tissueType : '').append(valueDelimiter)
@@ -581,9 +553,9 @@ class GeneExpressionDataService {
 		def nameIndexMap = [:]
 		int count = metaData.getColumnCount();
 		for (int i = 1; i <= count; i++) {
-			nameIndexMap.put(metaData.getColumnName(i), i);
+            nameIndexMap.put(metaData.getColumnName(i).toUpperCase(), i);
 		}
-		
+
 		def rawIntensityRSIdx = nameIndexMap.get("RAW_INTENSITY");
 		def zScoreRSIdx = nameIndexMap.get("ZSCORE");
 		def ptIDIdx = nameIndexMap.get("PATIENT_ID");
@@ -605,8 +577,7 @@ class GeneExpressionDataService {
 		
 		try {
 			//Iterate over the record set object.
-			while (rs.next())
-			{
+            while (rs.next()) {
 				//Pull the values we need from the record set object.			
 				 rawIntensityRS = rs.getString(rawIntensityRSIdx);
 				 zScoreRS = rs.getString(zScoreRSIdx);
@@ -751,7 +722,7 @@ class GeneExpressionDataService {
 				//Run the R command to set the working directory to our temp directory.
 				REXP x = c.eval(workingDirectoryCommand)
 				
-				String rScriptDirectory = config.com.recomdata.transmart.data.export.rScriptDirectory
+                String rScriptDirectory = grailsApplication.config.com.recomdata.transmart.data.export.rScriptDirectory
 				String compilePivotDataCommand = "source('${rScriptDirectory}/PivotData/PivotGeneExprData.R')".replace("\\","\\\\")
 				
 				log.debug("Attempting following R Command : " + compilePivotDataCommand.replace("\\","\\\\"))
@@ -770,17 +741,14 @@ class GeneExpressionDataService {
 		}
 	}
 
-	private String derivePathwayName( pathway_name)	
-	{
-		if (pathway_name == null || pathway_name.length() == 0 || pathway_name == "null" ) 
-		{
+    private String derivePathwayName(pathway_name) {
+        if (pathway_name == null || pathway_name.length() == 0 || pathway_name == "null") {
 			pathway_name = null
 		}
 		
 		boolean nativeSearch = grailsApplication.config.com.recomdata.search.genepathway=='native'
 		
-		if(!nativeSearch && pathway_name != null)	
-		{
+        if (!nativeSearch && pathway_name != null) {
 			//If we have multiple genes they will be comma separated. We need to split the string and find the unique ID for each.
 			def pathwayGeneList = pathway_name.split(",")
 			
@@ -795,7 +763,7 @@ class GeneExpressionDataService {
 	private List getCELFiles(String studyName, String sampleCd) {
 		//Build the query to get the clinical data.
 		groovy.sql.Sql sql = new groovy.sql.Sql(dataSource)
-		sqlQuery = "SELECT * FROM bio_content WHERE study_name = ? and file_name like ?"
+        def sqlQuery = "SELECT * FROM bio_content WHERE study_name = ? and file_name like ?"
 		def files = sql.rows(sqlQuery, [studyName, sampleCd+'%'])
 		
 		return files
@@ -804,7 +772,7 @@ class GeneExpressionDataService {
 	def downloadCELFiles(String resultInstanceId, studyList, File studyDir, String jobName, String pathway, String timepoint, String sampleTypes, String tissueTypes) {
 		groovy.sql.Sql sql = null
 
-		Map sampleCdsMap = null
+        Map sampleCdsMap = new HashMap<StringBuilder, StringBuilder>()
 		
 		try {
 			//Get the subjects for this result instance id.
@@ -839,12 +807,12 @@ class GeneExpressionDataService {
 			})
 		
 			if (sampleCdsMap.size() > 0) {
-				File mRNADir = FileWriterUtil.createDir(studyDir, 'mRNA')
-				File rawDataDir = FileWriterUtil.createDir(mRNADir, 'Raw_data')
+                File mRNADir = (new FileWriterUtil()).createDir(studyDir, 'mRNA')
+                File rawDataDir = (new FileWriterUtil()).createDir(mRNADir, 'Raw_data')
 				
 				sampleCdsMap.each { key, value ->
 					// create dir with name as value
-					File valueDir = FileWriterUtil.createDir(rawDataDir, value)
+                    File valueDir = (new FileWriterUtil()).createDir(rawDataDir, value)
 					// write files into that dir 
 					// use service to download files by passing the folder and filesURLs
 					def keyList = key.toString().tokenize("/")
@@ -877,6 +845,8 @@ class GeneExpressionDataService {
 	}
 	
 	def validateCommonSubjectsIn2Subsets(Map resultInstanceIdMap) {
+        checkQueryResultAccess(*resultInstanceIdMap.values())
+
 		if (resultInstanceIdMap && !resultInstanceIdMap.isEmpty() && resultInstanceIdMap.size() == 2) {
 			def sqlQuery = """
 							SELECT DISTINCT ssm.patient_id FROM de_subject_sample_mapping ssm 
@@ -917,8 +887,7 @@ class GeneExpressionDataService {
    }
    
    public void getGCTData(List studyList, File studyDir, String fileName, String jobName, 
-	   Map resultInstanceIdMap, boolean pivot, List platformsList)
-   {
+                           Map resultInstanceIdMap, boolean pivot, List platformsList) {
 	   
 	   //This will tell us if there are multiple subsets being exported.
 	   def moreThanOneSubset = false
@@ -995,6 +964,8 @@ class GeneExpressionDataService {
    }
 	   
    def private String createCLSDataQuery(List studyList, String resultInstanceIds, List platformsList) {
+       checkQueryResultAccess(*resultInstanceIds.split(/,/)*.trim())
+
 	   def sSelect = new StringBuilder()
 	   sSelect.append("""
 		   SELECT DISTINCT 	ssm.patient_id,
@@ -1015,6 +986,8 @@ class GeneExpressionDataService {
    }
    
    def private String createGCTPathwayQuery(List studyList, String resultInstanceIds, List platformsList) {
+       checkQueryResultAccess(*resultInstanceIds.split(/,/)*.trim())
+
 	   def sSelect = new StringBuilder()	   
 	   sSelect.append("""
 	   	SELECT a.PATIENT_ID, a.LOG_INTENSITY, a.RAW_INTENSITY, a.assay_id, b.probe_id, b.probeset_id, pd.sourcesystem_cd, ssm.gpl_id
@@ -1040,6 +1013,8 @@ class GeneExpressionDataService {
    }
    
    def private String createGCTStudySampleAssayQuery(List studyList, String resultInstanceIds, List platformsList) {
+       checkQueryResultAccess(*resultInstanceIds.split(/,/)*.trim())
+
 	   def sQuery = new StringBuilder();
 	   sQuery.append("""
 	   	SELECT DISTINCT ssm.assay_id, ssm.sample_type, ssm.timepoint, ssm.tissue_type, ssm.sample_cd, ssm.trial_name, ssm.GPL_ID
@@ -1059,7 +1034,7 @@ class GeneExpressionDataService {
 	   def str = new StringBuffer()
 	   def mapValues = resultInstanceIdMap.values()
 	   mapValues.each { val ->
-		   if (val && ((String)val)?.trim() != '') str.append(val).append(',')
+            if (val && ((String) val)?.trim() != '') str.append(val).append(',')
 	   }
 	   str.delete(str.length()-1, str.length())
    
@@ -1069,6 +1044,7 @@ class GeneExpressionDataService {
    /*
     * This method will check to see if we have multiple result instance ids and return a boolean.
     */
+
    def boolean isMultipleResultInstanceIds(str){
 	   def strList = str?.tokenize(',')
 	   return (!strList.empty && strList.size() > 1)
@@ -1076,7 +1052,7 @@ class GeneExpressionDataService {
    
    private Integer getStmtFetchSize() {
 	   //Grab the configuration that sets the fetch size.
-	   def rsize = config.com.recomdata.plugins.resultSize;
+        def rsize = grailsApplication.config.com.recomdata.plugins.resultSize;
 	   Integer fetchSize = 5000;
 	   if(rsize!=null){
 		   try{
@@ -1113,8 +1089,7 @@ class GeneExpressionDataService {
 			   assayID = rs.getString("ASSAY_ID");
 			   GPL_ID = rs.getString("GPL_ID");
 			   
-			   if(splitAttributeColumn)
-			   {
+                if (splitAttributeColumn) {
 				   sttSampleStr = (new StringBuilder()).append(StringUtils.isNotEmpty(sampleType) ? sampleType : '').append(valueDelimiter)
 				   .append(StringUtils.isNotEmpty(timepoint) ? timepoint : '').append(valueDelimiter)
 				   .append(StringUtils.isNotEmpty(tissueType) ? tissueType : '')
@@ -1181,8 +1156,7 @@ class GeneExpressionDataService {
 	   }
    }
    
-   private String writeGCTData(String sqlQuery, String sampleQuery, File gseaDir, String fileName, String jobName, gplIds)
-   {
+    private String writeGCTData(String sqlQuery, String sampleQuery, File gseaDir, String fileName, String jobName, gplIds) {
 	   def sttMap = getSamplesMap(sampleQuery,null,false)
 	   
 	   def con, stmt, rs = null;
@@ -1237,8 +1211,7 @@ class GeneExpressionDataService {
 	   long recCount = 0;
 	   try {
 		   //Iterate over the record set object.
-		   while (rs.next())
-		   {
+            while (rs.next()) {
 			   //Pull the values we need from the record set object.
 			   logIntensityRS = rs.getString(logIntensityRSIdx);
 			   rawIntensityRS = rs.getString(rawIntensityRSIdx);
@@ -1337,7 +1310,7 @@ class GeneExpressionDataService {
 			   //Run the R command to set the working directory to our temp directory.
 			   REXP x = c.eval(workingDirectoryCommand)
 			   
-			   String rScriptDirectory = config.com.recomdata.transmart.data.export.rScriptDirectory
+                String rScriptDirectory = grailsApplication.config.com.recomdata.transmart.data.export.rScriptDirectory
 			   String compilePivotDataCommand = "source('${rScriptDirectory}/PivotData/PivotGSEAExportGCTData.R')".replace("\\","\\\\")
 			   
 			   log.debug("Attempting following R Command : " + compilePivotDataCommand)
@@ -1365,6 +1338,4 @@ class GeneExpressionDataService {
 	   })
 	   return gplTitle
    }
-   
-  
 }

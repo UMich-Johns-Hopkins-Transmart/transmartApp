@@ -25,7 +25,6 @@ package com.recomdata.genesignature
 
 import com.recomdata.util.ModelDetails
 import org.transmart.biomart.ConceptCode
-import org.transmart.searchapp.GeneSignature
 
 /**
  * @author jspencer

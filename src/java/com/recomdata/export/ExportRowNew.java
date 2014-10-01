@@ -20,10 +20,13 @@
 
 package com.recomdata.export;
 
-import java.util.*;
-import java.util.logging.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-import org.json.*;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 
 /**
  * 
@@ -66,5 +69,16 @@ public class ExportRowNew {
 			json.put(column, values.get(column));
 		}
 		return json;
+	}
+	
+	public JSONArray toJSONArray() throws JSONException {
+		
+		JSONArray jsonArray = new JSONArray();
+		
+		for (Iterator<String> i = values.keySet().iterator(); i.hasNext(); ) {
+			String column=i.next();
+			jsonArray.put(values.get(column));
+		}
+		return jsonArray;
 	}
 }

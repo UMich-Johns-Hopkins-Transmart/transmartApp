@@ -21,11 +21,11 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-        <link rel="shortcut icon" href="${resource(dir:'images',file:'searchtool.ico')}">
+		<link rel="shortctu icon" href="${resource(dir:'images',file:'searchtool.ico')}">
 		<link rel="icon" href="${resource(dir:'images',file:'searchtool.ico')}">
-		<link rel="stylesheet" href="${resource(dir:'js', file:'ext/resources/css/ext-all.css')}">
-		<link rel="stylesheet" href="${resource(dir:'js', file:'ext/resources/css/xtheme-gray.css')}">
-		<link rel="stylesheet" href="${resource(dir:'css', file:'main.css')}">
+		<link rel="stylesheet" href="${resource(dir:'js', file:'ext/resources/css/ext-all.css')}"></link>
+		<link rel="stylesheet" href="${resource(dir:'js', file:'ext/resources/css/xtheme-gray.css')}"></link>
+		<link rel="stylesheet" href="${resource(dir:'css', file:'main.css')}"></link>
 		
 	<!--[if IE 7]>
 		<style type="text/css">
@@ -35,14 +35,16 @@
 		</style>
 	<![endif]-->
 	
-
+		<g:javascript library="prototype" />
 		<script type="text/javascript" src="${resource(dir:'js', file:'ext/adapter/ext/ext-base.js')}"></script>
 		<script type="text/javascript" src="${resource(dir:'js', file:'ext/ext-all.js')}"></script>
 		<script type="text/javascript" src="${resource(dir:'js', file:'ext/miframe.js')}"></script>
 		<script type="text/javascript" src="${resource(dir:'js', file:'searchcombobox.js')}"></script>
 	    <script type="text/javascript" src="${resource(dir:'js', file:'picklist.js')}"></script>
 	    <script type="text/javascript" src="${resource(dir:'js', file:'utilitiesMenu.js')}"></script>
-		<script type="text/javascript" charset="utf-8">
+		<r:script>
+            //Comment for test CI #2
+
 			Ext.BLANK_IMAGE_URL = "${resource(dir:'js', file:'ext/resources/images/default/s.gif')}";
 
 			// set ajax to 90*1000 milliseconds
@@ -52,9 +54,9 @@
 			Ext.QuickTips.init();
 
 			Ext.onReady(function(){			
-	            var helpURL = '${grailsApplication.config.com.recomdata.searchtool.adminHelpURL}';
-	            var contact = '${grailsApplication.config.com.recomdata.searchtool.contactUs}';
-	            var appTitle = '${grailsApplication.config.com.recomdata.searchtool.appTitle}';
+                var helpURL = '${grailsApplication.config.com.recomdata.adminHelpURL}';
+	            var contact = '${grailsApplication.config.com.recomdata.contactUs}';
+	            var appTitle = '${grailsApplication.config.com.recomdata.appTitle}';
 	            var buildVer = 'Build Version: <g:meta name="environment.BUILD_NUMBER"/> - <g:meta name="environment.BUILD_ID"/>';
 	             
 				var viewport = new Ext.Viewport({
@@ -83,6 +85,7 @@
 				        }
 					}
 				});
+
 
 				var combo = new Ext.app.SearchComboBox({
 					id: "search-combobox",
@@ -143,15 +146,16 @@
 				searchcombo.className += " searchcombobox-disabled";
 				searchcombo.style.width = "442px";						
 			}
-		</script>
-		<title>${grailsApplication.config.com.recomdata.searchtool.appTitle}</title>
+		</r:script>
+		<title>${grailsApplication.config.com.recomdata.appTitle}</title>
 		<!-- ************************************** -->
         <!-- This implements the Help functionality -->
         <script type="text/javascript" src="${resource(dir:'js', file:'help/D2H_ctxt.js')}"></script>
         <script language="javascript">
-        	helpURL = '${grailsApplication.config.com.recomdata.searchtool.adminHelpURL}';
+            helpURL = '${grailsApplication.config.com.recomdata.adminHelpURL}';
         </script>
 		<!-- ************************************** -->
+        <r:layoutResources /><%-- XXX: Use template --%>
 	</head>
 	<body>
 		<div id="header-div">
@@ -159,4 +163,5 @@
 			<g:render template="/layouts/searchheader" model="['app':'search']" />
 		</div>
 	</body>
+    <r:layoutResources /><%-- XXX: Use template --%>
 </html>

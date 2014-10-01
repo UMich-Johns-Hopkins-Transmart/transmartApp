@@ -20,22 +20,16 @@
 
 package com.recomdata.gex
 
-import i2b2.SampleInfo
+import com.recomdata.transmart.data.export.util.FileWriterUtil
+import grails.util.Holders
+import org.apache.commons.lang.StringUtils
+import org.apache.commons.logging.LogFactory
+import org.rosuda.REngine.REXP
+import org.rosuda.REngine.Rserve.RConnection
+import org.springframework.context.ApplicationContext
 
-import java.io.File;
-import java.util.HashMap;
+import static org.transmart.authorization.QueriesResourceAuthorizationDecorator.checkQueryResultAccess
 
-import org.apache.commons.lang.math.NumberUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.Logger;
-import org.codehaus.groovy.grails.commons.ConfigurationHolder;
-import org.rosuda.REngine.REXP;
-import org.rosuda.REngine.Rserve.RConnection;
-import org.springframework.context.ApplicationContext;
-
-import com.recomdata.transmart.data.export.util.FileWriterUtil;
-import com.sun.rowset.CachedRowSetImpl;
 /**
  * This class has been replaced with GeneExpressionDataService
  * @author SMunikuntla
@@ -49,12 +43,8 @@ public class GexDao {
 	def springSecurityService = ctx.getBean('springSecurityService')
 	def grailsApplication = ctx.getBean('grailsApplication')
 	
-	//private static org.apache.log4j.Logger log = Logger.getLogger(GexDao.class);
 	private static final log = LogFactory.getLog('grails.app.' +GexDao.class.name)
 	
-	//def SearchKeyword = ctx.getBean('SearchKeyword')
-	def config = ConfigurationHolder.config
-
 	//This is the SQL query we use to get our data.
 	private String sqlQuery = ""
 
@@ -62,6 +52,8 @@ public class GexDao {
 
 	public  getData(String study, File studyDir, String fileName, String jobName, String resultInstanceId, boolean pivot, String pathway, String timepoint, String sampleTypes)
 	{
+        checkQueryResultAccess resultInstanceId
+
 		try {
 			pathway = derivePathwayName(pathway)
 			
@@ -135,7 +127,7 @@ public class GexDao {
 				INNER JOIN search_keyword sk ON sk.bio_data_id = sbm.bio_marker_id
 				INNER JOIN de_subject_sample_mapping ssm ON (ssm.trial_name = A.trial_name AND ssm.assay_id = A.assay_id)
 				INNER JOIN (SELECT DISTINCT sc.patient_num FROM qt_patient_set_collection sc, patient_dimension pd
-		 		WHERE sc.result_instance_id = CAST(? AS numeric) AND pd.sourcesystem_cd NOT LIKE '%:S:%'
+		 		WHERE sc.result_instance_id = ? AND pd.sourcesystem_cd NOT LIKE '%:S:%'
 		 		AND sc.patient_num = pd.patient_num) sub ON ssm.patient_id = sub.patient_num
 				""");
 		//TODO replace study within query as parameter to query
@@ -183,6 +175,7 @@ public class GexDao {
 	 * @return
 	 */
 	def String getAssayIds(String resultInstanceId, String sampleTypes, String timepoint) {
+        checkQueryResultAccess resultInstanceId
 
 		//Sql command used to retrieve Assay IDs.
 		groovy.sql.Sql sql = new groovy.sql.Sql(dataSource);
@@ -190,7 +183,7 @@ public class GexDao {
 		//SQL Query string.
 		StringBuilder assayS = new StringBuilder("select distinct s.assay_id  from de_subject_sample_mapping s");
 		assayS.append(", (SELECT DISTINCT sc.patient_num FROM qt_patient_set_collection sc, patient_dimension pd")
-		.append(" WHERE sc.result_instance_id = CAST(? AS numeric) AND pd.sourcesystem_cd NOT LIKE '%:S:%'")
+		.append(" WHERE sc.result_instance_id = ? AND pd.sourcesystem_cd NOT LIKE '%:S:%'")
 		.append(" AND sc.patient_num = pd.patient_num) A where s.patient_id = A.patient_num");
 
 		//If we have a sample type, append it to the query.
@@ -517,7 +510,7 @@ public class GexDao {
 				//Run the R command to set the working directory to our temp directory.
 				REXP x = c.eval(workingDirectoryCommand)
 				
-				String pluginScriptDirectory = config.com.recomdata.plugins.pluginScriptDirectory
+				String pluginScriptDirectory = Holders.config.com.recomdata.plugins.pluginScriptDirectory
 				String compilePivotDataCommand = "source('${pluginScriptDirectory}/PivotData/PivotGeneExprData.R')"
 				REXP comp = c.eval(compilePivotDataCommand)
 				//Prepare command to call the PivotClinicalData.R script

@@ -16,7 +16,7 @@
   
  
 -->
-<%@ page import="org.transmart.searchapp.Role"%>
+
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
@@ -58,7 +58,7 @@
 			</div>
 	
 			<div class="paginateButtons">
-				<g:paginate total="${Role.count()}" />
+				<g:paginate total="${org.transmart.searchapp.Role.count()}" />
 			</div>
 		</div>
 	</body>

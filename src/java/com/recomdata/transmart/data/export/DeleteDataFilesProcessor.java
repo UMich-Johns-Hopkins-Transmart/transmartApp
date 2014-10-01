@@ -20,34 +20,38 @@
 
 package com.recomdata.transmart.data.export;
 
-import java.io.File;
-import java.util.Map;
-
+import com.recomdata.transmart.data.export.util.FTPUtil;
+import grails.util.Holders;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
-import com.recomdata.transmart.data.export.util.FTPUtil;
+import java.io.File;
+import java.util.Map;
+
+
 
 public class DeleteDataFilesProcessor {
 	private static org.apache.log4j.Logger log = Logger
 			.getLogger(DeleteDataFilesProcessor.class);
 	
 	@SuppressWarnings("rawtypes")
+	private static final Map config = Holders.getFlatConfig();
+	private static final String TEMP_DIR = (String) config.get("com.recomdata.plugins.tempFolderDirectory");
 	
-	public boolean deleteDataFile(String fileToDelete, String directoryToDelete, String tempDir, String ftpServer, String ftpServerPort, String ftpServerUserName, String ftpServerPassword, String ftpServerRemotePath){
+	public boolean deleteDataFile(String fileToDelete, String directoryToDelete){
 		boolean fileDeleted=false;
 		try{
 			if (StringUtils.isEmpty(fileToDelete)||StringUtils.isEmpty(directoryToDelete)){
 				throw new Exception("Invalid file or directory name. Both are needed to delete data for an export job");
 			}
-			String dirPath = tempDir + File.separator + directoryToDelete;
+			String dirPath = TEMP_DIR + File.separator + directoryToDelete;
 			@SuppressWarnings("unused")
 			boolean directoryDeleted = deleteDirectoryStructure(new File(dirPath));
 			
-			fileDeleted = FTPUtil.deleteFile(fileToDelete, ftpServer, ftpServerPort, ftpServerUserName, ftpServerPassword, ftpServerRemotePath);
+			fileDeleted = FTPUtil.deleteFile(fileToDelete);
 			//If the file was not found at the FTP location try to delete it from the server Temp dir
 			if (!fileDeleted) {
-				String filePath = tempDir + File.separator + fileToDelete;
+				String filePath = TEMP_DIR + File.separator + fileToDelete;
 				File jobZipFile = new File(filePath);
 				if (jobZipFile.isFile()) {
 					jobZipFile.delete();

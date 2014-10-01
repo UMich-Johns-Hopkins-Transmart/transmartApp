@@ -37,9 +37,6 @@ class SearchResult {
 	int experimentCount = 0
 	int allAnalysiCount = 0
 	
-	// Cortellis tab - currently not used
-	int cortellisCount = 0
-	
 	int documentCount = 0
 	int litJubOncAltCount = 0
 	int litJubOncInhCount = 0
@@ -55,7 +52,7 @@ class SearchResult {
 	String resultType
 
 	def totalCount = {
-		return experimentCount + literatureCount() + trialCount + documentCount+ profileCount + cortellisCount
+		return experimentCount + literatureCount() + trialCount + documentCount+ profileCount
 	}
 
 	def litJubOncCount = {

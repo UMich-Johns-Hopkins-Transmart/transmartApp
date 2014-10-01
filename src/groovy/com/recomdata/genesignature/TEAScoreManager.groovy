@@ -22,7 +22,6 @@ package com.recomdata.genesignature
 
 import com.recomdata.util.BinomialDistribution
 import org.apache.log4j.Logger
-import org.transmart.biomart.BioAssayAnalysisData;
 
 /**
  * manager class for TEA scoring logic

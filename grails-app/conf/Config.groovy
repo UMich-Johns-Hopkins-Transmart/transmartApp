@@ -1,3 +1,5 @@
+import grails.util.Environment
+
 /*************************************************************************
  * tranSMART - translational medicine data mart
  * 
@@ -16,8 +18,15 @@
  * 
  *
  ******************************************************************/
-  
-
+def console
+if (!Environment.isWarDeployed() && Environment.isWithinShell()) {
+    console = grails.build.logging.GrailsConsole.instance
+} else {
+    console = [
+            info: { println "[INFO] $it" },
+            warn: { println "[WARN] $it" },
+    ]
+}
 
 /**
  * Running externalized configuration
@@ -27,48 +36,37 @@
  * - dataSource location set path by system environment variable '<APP_NAME>_DATASOURCE_LOCATION'
  */
 
-import grails.plugins.springsecurity.SecurityConfigType
-
-grails.plugins.springsecurity.successHandler.defaultTargetUrl = "/transmart"
-
-grails.plugins.springsecurity.rejectIfNoRule = true
-grails.plugins.springsecurity.userLookup.userDomainClassName = 'org.transmart.searchapp.AuthUser'
-grails.plugins.springsecurity.userLookup.authorityJoinClassName = 'org.transmart.searchapp.AuthUserRole'
-grails.plugins.springsecurity.authority.className = 'org.transmart.searchapp.Role'
-grails.plugins.springsecurity.requestMap.className = 'org.transmart.searchapp.Requestmap'
-grails.plugins.springsecurity.securityConfigType = SecurityConfigType.Requestmap
-//grails.plugins.springsecurity.interceptUrlMap = [
-//        '/login/**'                   : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/css/**'                     : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/js/**'                      : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/images/**'                  : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/static/**'                  : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/search/loadAJAX**'          : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/analysis/getGenePatternFile': ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/analysis/getTestFile'       : ['IS_AUTHENTICATED_ANONYMOUSLY'],
-//        '/requestmap/**'              : ['ROLE_ADMIN'],
-//        '/role/**'                    : ['ROLE_ADMIN'],
-//        '/authUser/**'                : ['ROLE_ADMIN'],
-//        '/secureObject/**'            : ['ROLE_ADMIN'],
-//        '/accessLog/**'               : ['ROLE_ADMIN'],
-//        '/authUserSecureAccess/**'    : ['ROLE_ADMIN'],
-//        '/secureObjectPath/**'        : ['ROLE_ADMIN'],
-//        '/userGroup/**'               : ['ROLE_ADMIN'],
-//        '/secureObjectAccess/**'      : ['ROLE_ADMIN'],
-//        '/**'                         : ['IS_AUTHENTICATED_REMEMBERED'], // must be last
-//]
+/* For some reason, the externalized config files are run with a different
+ * binding. None of the variables appName, userHome, appVersion, grailsHome
+ * are available; the binding will actually be the root config object.
+ * So store the current binding in the config object so the externalized
+ * config has access to the variables mentioned.
+ */
+org.transmart.originalConfigBinding = getBinding()
 
 grails.config.locations = []
-def defaultConfigFiles = [
+def defaultConfigFiles
+if (Environment.current != Environment.TEST) {
+    defaultConfigFiles = [
 	"${userHome}/.grails/${appName}Config/Config.groovy",
 	"${userHome}/.grails/${appName}Config/RModulesConfig.groovy",
 	"${userHome}/.grails/${appName}Config/DataSource.groovy"
 ]
+} else {
+    // settings for the test environment
+    org.transmart.configFine = true
+}
+
 defaultConfigFiles.each { filePath ->
 	def f = new File(filePath)
 	if (f.exists()) {
+        if (f.name == 'RModulesConfig.groovy') {
+            console.warn "RModulesConfig.groovy is deprecated, it has been merged into Config.groovy. " +
+                    "Loading it anyway."
+        }
 		grails.config.locations << "file:${filePath}"
-	} else {
+    } else if (f.name != 'RModulesConfig.groovy') {
+        console.info "Configuration file ${filePath} does not exist."
 	}
 }
 String bashSafeEnvAppName = appName.toString().toUpperCase(Locale.ENGLISH).replaceAll(/-/, '_')
@@ -81,8 +79,7 @@ def externalDataSource = System.getenv("${bashSafeEnvAppName}_DATASOURCE_LOCATIO
 if (externalDataSource) {
 	grails.config.locations << "file:" + externalDataSource
 }
-grails.config.locations.each { println "[INFO] Including configuration file [${it}] in configuration building." }
-
+grails.config.locations.each { console.info "Including configuration file [${it}] in configuration building." }
 
 /* 
  *  The following lines are copied from the previous COnfig.groovy
@@ -120,12 +117,16 @@ grails.views.gsp.encoding="UTF-8"
 grails.converters.encoding="UTF-8"
 grails.converters.default.pretty.print=true
 
+/* Keep pre-2.3.0 behavior */
+grails.databinding.convertEmptyStringsToNull = false
+grails.databinding.trimStrings = false
+
 // enabled native2ascii conversion of i18n properties files
 grails.enable.native2ascii = true
 
 com.recomdata.search.autocomplete.max=20
 // default paging size
-com.recomdata.search.paginate.max=10
+com.recomdata.search.paginate.max=20
 com.recomdata.search.paginate.maxsteps=5
 com.recomdata.admin.paginate.max=20
 
@@ -134,7 +135,7 @@ com.recomdata.admin.paginate.max=20
 //SUBJECT Data.
 com.recomdata.i2b2.subject.domain = 'i2b2demo'
 com.recomdata.i2b2.subject.projectid = 'i2b2demo'
-com.recomdata.i2b2.subject.username = 'i2b2'
+com.recomdata.i2b2.subject.username = 'Demo'
 com.recomdata.i2b2.subject.password = 'demouser'
 
 //SAMPLE Data.
@@ -147,8 +148,6 @@ com.recomdata.i2b2.sample.password = 'manager'
 org.transmartproject.i2b2.user_id = 'i2b2'
 org.transmartproject.i2b2.group_id = 'Demo'
 //**************************
-
-
 
 // max genes to display after disease search
 com.recomdata.search.gene.max=250;
@@ -163,7 +162,7 @@ com.recomdata.transmart.data.export.max.export.jobs.loaded=20
 com.recomdata.transmart.data.export.dataTypesMap=[
 	'CLINICAL':'Clinical & Low Dimensional Biomarker Data', 
 	'MRNA':'Gene Expression Data', 
-	'SNP':'SNP Data',
+        'SNP': 'SNP data (Microarray)',
 	'STUDY':'Study Metadata',
 	'ADDITIONAL':'Additional Data'
 	//,'GSEA':'Gene Set Enrichment Analysis (GSEA)'
@@ -202,7 +201,7 @@ com.recomdata.analysis.data.file.dir = "data"; // Relative to the app root "web-
 // Disclaimer
 StringBuilder disclaimer = new StringBuilder()
 disclaimer.append("<p></p>")
-com.recomdata.disclaimer=disclaimer.toString()
+com.recomdata.disclaimer = disclaimer.toString()
 
 // customization views
 //com.recomdata.view.studyview='_clinicaltrialdetail'
@@ -210,4 +209,53 @@ com.recomdata.skipdisclaimer=true
 
 grails.spring.bean.packages = []
 
-grails.resources.modules = {}
+org.transmart.security.spnegoEnabled = false
+
+// requires NIO connector though. If you use apache in front of tomcat in the
+// same server, you can set this to false and set .apache = true
+// Bear in mind bug GRAILS-11376 with Tomcat NIO and Grails 2.3.6+
+grails.plugins.sendfile.tomcat = false
+
+log4j = {
+    environments {
+        test {
+            warn 'org.codehaus.groovy.grails.commons.spring'
+            warn 'org.codehaus.groovy.grails.domain.GrailsDomainClassCleaner'
+            warn 'org.codehaus.groovy.grails.plugins.DefaultGrailsPluginManager' //info to show plugin versions
+            warn 'org.codehaus.groovy.grails.orm.hibernate.cfg.GrailsDomainBinder' //info to show joined-subclass indo
+
+            root {
+                info('stdout')
+            }
+        }
+        }
+    }
+
+// Uncomment and edit the following lines to start using Grails encoding & escaping improvements
+
+/* remove this line 
+// GSP settings
+grails {
+    views {
+        gsp {
+            encoding = 'UTF-8'
+            htmlcodec = 'xml' // use xml escaping instead of HTML4 escaping
+            codecs {
+                expression = 'html' // escapes values inside null
+                scriptlet = 'none' // escapes output from scriptlets in GSPs
+                taglib = 'none' // escapes output from taglibs
+                staticparts = 'none' // escapes output from static template parts
+            }
+        }
+        // escapes all not-encoded output at final stage of outputting
+        filteringCodecForContentType {
+            //'text/html' = 'html'
+        }
+    }
+}
+remove this line */
+
+
+/*
+// MetaCore plugin
+com.thomsonreuters.transmart.metacoreAnalyticsEnable=true */

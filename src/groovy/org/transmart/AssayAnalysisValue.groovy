@@ -19,8 +19,6 @@ package org.transmart
  ******************************************************************/
   
 
-import org.transmart.biomart.BioAssayAnalysisData;
-
 import org.transmart.biomart.BioMarker
 
 /**

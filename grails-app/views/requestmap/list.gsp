@@ -16,7 +16,7 @@
   
  
 -->
-<%@ page import="org.transmart.searchapp.Requestmap"%>
+
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
@@ -57,7 +57,7 @@
 			</div>
 	
 			<div class="paginateButtons">
-				<g:paginate total="${Requestmap.count()}" />
+				<g:paginate total="${org.transmart.searchapp.Requestmap.count()}" />
 			</div>
 	
 		</div>
