@@ -111,7 +111,6 @@ grails.project.dependency.resolution = {
         build ':rest-client-builder:2.0.1'
         build ':tomcat:7.0.52.1'
 
-        compile ':build-info:1.2.5'
         compile ':hibernate:3.6.10.10'
         compile ':quartz:1.0-RC2'
         // Not compatible with spring security 3.2 yet
@@ -144,7 +143,6 @@ grails.project.dependency.resolution = {
             //// already included in biomart-domain
             //compile ':transmart-java:1.2.2-SNAPSHOT'
             runtime ':dalliance-plugin:0.2-SNAPSHOT'
-            //runtime ':transmart-metacore-plugin:1.2.2-SNAPSHOT'
             runtime ':transmart-mydas:0.1-SNAPSHOT'
             runtime ':transmart-rest-api:0.1-SNAPSHOT'
             runtime ':blend4j-plugin:1.2.2-SNAPSHOT'
@@ -173,6 +171,8 @@ dm?.with {
     configureInternalPlugin 'runtime', 'dalliance-plugin'
     configureInternalPlugin 'runtime', 'transmart-mydas'
     configureInternalPlugin 'runtime', 'transmart-rest-api'
+    configureInternalPlugin 'runtime', 'blend4j-plugin'
+    configureInternalPlugin 'runtime', 'transmart-metacore-plugin'
 }
 
 dm?.inlineInternalDependencies grails, grailsSettings
